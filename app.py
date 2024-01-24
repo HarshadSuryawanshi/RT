@@ -6,10 +6,16 @@ from llama_index.embeddings import HuggingFaceEmbedding
 from llama_index import SimpleDirectoryReader, ServiceContext, VectorStoreIndex, StorageContext
 from llama_index.node_parser import SentenceSplitter, CodeSplitter, SemanticSplitterNodeParser, TokenTextSplitter
 from llama_index.node_parser.file import HTMLNodeParser, JSONNodeParser, MarkdownNodeParser
-from llama_index.vector_stores import FaissVectorStore, MilvusVectorStore, QdrantVectorStore
+from llama_index.vector_stores import FaissVectorStore, MilvusVectorStore, QdrantVectorStore, PineconeVectorStore
+from pinecone import Pinecone, PodSpec
+
+
+def reset_pipeline_generated():
+    if 'pipeline_generated' in st.session_state:
+        st.session_state['pipeline_generated'] = False
 
 def upload_file():
-    file = st.file_uploader("Upload a file")
+    file = st.file_uploader("Upload a file", on_change=reset_pipeline_generated)
     if file is not None:
         file_path = save_uploaded_file(file)
         
@@ -47,7 +53,7 @@ def save_uploaded_file(uploaded_file):
 
 def select_llm():
     st.header("Choose LLM")
-    llm_choice = st.selectbox("Select LLM", ["Gemini", "Cohere", "GPT-3.5", "GPT-4"])
+    llm_choice = st.selectbox("Select LLM", ["Gemini", "Cohere", "GPT-3.5", "GPT-4"], on_change=reset_pipeline_generated)
     
     if llm_choice == "GPT-3.5":
         llm = OpenAI(temperature=0.1, model="gpt-3.5-turbo-1106")
@@ -61,7 +67,7 @@ def select_llm():
         llm = Gemini(model="models/gemini-pro")
         st.write(f"{llm_choice} selected")
     elif llm_choice == "Cohere":
-        llm = Cohere(model="command", api_key=st.secrets['COHERE_API_TOKEN'])
+        llm = Cohere(model="command", api_key=os.environ['COHERE_API_TOKEN'])
         st.write(f"{llm_choice} selected")
     return llm, llm_choice
 
@@ -80,7 +86,7 @@ def select_embedding_model():
         "thenlper/gte-base"
     ]
     with st.spinner("Please wait"):
-        selected_model = st.selectbox("Select Embedding Model", model_names)
+        selected_model = st.selectbox("Select Embedding Model", model_names,  on_change=reset_pipeline_generated)
         embed_model = HuggingFaceEmbedding(model_name=selected_model)
         st.session_state['embed_model'] = embed_model
         st.write(F"Embedding model selected: {embed_model}")
@@ -90,7 +96,7 @@ def select_embedding_model():
 def select_node_parser():
     st.header("Choose Node Parser")
     parser_type = st.selectbox("Select Node Parser", ["SentenceSplitter", "CodeSplitter", "SemanticSplitterNodeParser", 
-                                                     "TokenTextSplitter", "HTMLNodeParser", "JSONNodeParser", "MarkdownNodeParser"])
+                                                     "TokenTextSplitter", "HTMLNodeParser", "JSONNodeParser", "MarkdownNodeParser"],  on_change=reset_pipeline_generated)
 
     parser = None
     if parser_type == "HTMLNodeParser":
@@ -147,14 +153,14 @@ def select_response_synthesis_method():
         "accumulate", 
         "compact_accumulate"
     ]
-    selected_mode = st.selectbox("Select Response Mode", response_modes)
+    selected_mode = st.selectbox("Select Response Mode", response_modes, on_change=reset_pipeline_generated)
     response_mode = selected_mode
     return response_mode, selected_mode
 
 def select_vector_store():
     st.header("Choose Vector Store")
-    vector_stores = ["Simple", "Faiss", "Milvus", "Qdrant"]
-    selected_store = st.selectbox("Select Vector Store", vector_stores)
+    vector_stores = ["Simple", "Faiss", "Pinecone", "Qdrant"]
+    selected_store = st.selectbox("Select Vector Store", vector_stores, on_change=reset_pipeline_generated)
 
     vector_store = None
     if selected_store == "Faiss":
@@ -162,8 +168,11 @@ def select_vector_store():
         faiss_index = faiss.IndexFlatL2(d)
         vector_store = FaissVectorStore(faiss_index=faiss_index)
 
-    elif selected_store == "Milvus":
-        vector_store = MilvusVectorStore(dim=1536, overwrite=True)
+    elif selected_store == "Pinecone":
+        pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
+        index = pc.Index("quickstart")
+        vector_store = PineconeVectorStore(pinecone_index=index)
+
 
     elif selected_store == "Qdrant":
         client = qdrant_client.QdrantClient(location=":memory:")
@@ -288,7 +297,7 @@ def main():
     if file is not None:
         if node_parser:
             nodes = node_parser.get_nodes_from_documents(file)
-            print(f"First node: {nodes[0].text}")
+            st.code(f"First node: {nodes[0].text}")
 
     response_mode, response_mode_choice = select_response_synthesis_method()
     vector_store, vector_store_choice = select_vector_store()

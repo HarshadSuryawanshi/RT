@@ -276,7 +276,11 @@ def generate_code_snippet(llm_choice, embed_model_choice, node_parser_choice, re
     return code_snippet
 
 def main():
-    st.title("RAGArch: Test your RAG pipelines for different parameters using Llamaindex and generate code")
+    st.title("RAGArch: RAG Pipeline Tester and Code Generator")
+    st.markdown("""
+    - **Configure and Test RAG Pipelines with Custom Parameters**
+    - **Automatically Generate Plug-and-Play Implementation Code Based on Your Configuration**
+    """)
 
     # Upload file
     file = upload_file()

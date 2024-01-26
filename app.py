@@ -1,13 +1,12 @@
-import os, tempfile, faiss, qdrant_client
+import os, tempfile, qdrant_client
 import streamlit as st
-from io import StringIO
 from llama_index.llms import OpenAI, Gemini, Cohere
 from llama_index.embeddings import HuggingFaceEmbedding
 from llama_index import SimpleDirectoryReader, ServiceContext, VectorStoreIndex, StorageContext
 from llama_index.node_parser import SentenceSplitter, CodeSplitter, SemanticSplitterNodeParser, TokenTextSplitter
 from llama_index.node_parser.file import HTMLNodeParser, JSONNodeParser, MarkdownNodeParser
-from llama_index.vector_stores import FaissVectorStore, MilvusVectorStore, QdrantVectorStore, PineconeVectorStore
-from pinecone import Pinecone, PodSpec
+from llama_index.vector_stores import QdrantVectorStore, PineconeVectorStore
+from pinecone import Pinecone
 
 
 def reset_pipeline_generated():
@@ -208,8 +207,8 @@ def generate_code_snippet(llm_choice, embed_model_choice, node_parser_choice, re
     code_snippet += "from llama_index import ServiceContext, VectorStoreIndex, StorageContext\n"
     code_snippet += "from llama_index.node_parser import SentenceSplitter, CodeSplitter, SemanticSplitterNodeParser, TokenTextSplitter\n"
     code_snippet += "from llama_index.node_parser.file import HTMLNodeParser, JSONNodeParser, MarkdownNodeParser\n"
-    code_snippet += "from llama_index.vector_stores import FaissVectorStore, MilvusVectorStore, QdrantVectorStore\n"
-    code_snippet += "import faiss, qdrant_client\n\n"
+    code_snippet += "from llama_index.vector_stores import MilvusVectorStore, QdrantVectorStore\n"
+    code_snippet += "import qdrant_client\n\n"
 
     # LLM initialization
     if llm_choice == "GPT-3.5":
@@ -270,11 +269,32 @@ def generate_code_snippet(llm_choice, embed_model_choice, node_parser_choice, re
     return code_snippet
 
 def main():
-    st.title("RAGArchitect: RAG Pipeline Tester and Code Generator")
+    st.title("RAGArch: RAG Pipeline Tester and Code Generator")
     st.markdown("""
     - **Configure and Test RAG Pipelines with Custom Parameters**
     - **Automatically Generate Plug-and-Play Implementation Code Based on Your Configuration**
     """)
+
+    # Sidebar Intro
+    st.sidebar.markdown('## App Created By')
+    st.sidebar.markdown("""
+    Harshad Suryawanshi: 
+    [Linkedin](https://www.linkedin.com/in/harshadsuryawanshi/), [Medium](https://harshadsuryawanshi.medium.com/), [X](https://twitter.com/HarshadSurya1c)
+    """)
+    st.sidebar.markdown('## Other Projects')
+    st.sidebar.markdown("""
+    - [C3 Voice Assistant - Making LLM/RAG Apps Accessible to Everyone](https://www.linkedin.com/posts/harshadsuryawanshi_ai-llamaindex-gpt3-activity-7149796976442740736-1lXj?utm_source=share&utm_medium=member_desktop)
+    - [NA2SQL - Extracting Insights from Databases using Natural Language](https://www.linkedin.com/posts/harshadsuryawanshi_ai-llamaindex-streamlit-activity-7141801596006440960-mCjT)
+    - [Pokemon Go! Inspired AInimal GO! - Multimodal RAG App](https://www.linkedin.com/posts/harshadsuryawanshi_llamaindex-ai-deeplearning-activity-7134632983495327744-M7yy)
+    - [Building My Own GPT4-V with PaLM and Kosmos](https://lnkd.in/dawgKZBP)
+    - [AI Equity Research Analyst](https://ai-eqty-rsrch-anlyst.streamlit.app/)
+    - [Recasting "The Office" Scene](https://blackmirroroffice.streamlit.app/)
+    - [Story Generator](https://appstorycombined-agaf9j4ceit.streamlit.app/)
+    """)
+    
+    st.sidebar.markdown('## Disclaimer')
+    st.sidebar.markdown("""This application is for demonstration purposes only and may not cover all aspects of real-world data complexities. Please use it as a guide and not as a definitive source for decision-making.""")
+    
 
     # Upload file
     file = upload_file()

@@ -20,16 +20,12 @@ def upload_file():
         file_path = save_uploaded_file(file)
         
         if file_path:
-            # Use the file with SimpleDirectoryReader
-            # Replace 'SimpleDirectoryReader' with the actual code to read the file
-            # For example:
-            # reader = SimpleDirectoryReader(input_files=[file_path])
             loaded_file = SimpleDirectoryReader(input_files=[file_path]).load_data()
             print(f"Total documents: {len(loaded_file)}")
 
             # If there are any documents, print the details of the first one
             if loaded_file:
-                print(f"First document, id: {loaded_file[0].doc_id}")
+                #st.write(f"First document, id: {loaded_file[0].doc_id}")
                 #print(f"First document, hash: {loaded_file[0].hash}")
                 #print(f"First document, text ({len(loaded_file[0].text)} characters):\n{'='*20}\n{loaded_file[0].text[:360]} ...")
 
@@ -48,8 +44,6 @@ def save_uploaded_file(uploaded_file):
         st.error(f"Error saving file: {e}")
         return None
 
-# Placeholder functions for different components of the RAG pipeline
-# These functions should be replaced with actual implementations
 
 def select_llm():
     st.header("Choose LLM")
@@ -58,11 +52,9 @@ def select_llm():
     if llm_choice == "GPT-3.5":
         llm = OpenAI(temperature=0.1, model="gpt-3.5-turbo-1106")
         st.write(f"{llm_choice} selected")
-        #print(llm.complete("which specific version of gpt model are you. what is the model name in api? "))
     elif llm_choice == "GPT-4":
         llm = OpenAI(temperature=0.1, model="gpt-4-1106-preview")
         st.write(f"{llm_choice} selected")
-        #print(llm.complete("which specific version of gpt model are you. what is the model name in api? "))
     elif llm_choice == "Gemini":
         llm = Gemini(model="models/gemini-pro")
         st.write(f"{llm_choice} selected")
@@ -85,60 +77,71 @@ def select_embedding_model():
         "infgrad/stella-base-en-v2",
         "thenlper/gte-base"
     ]
-    with st.spinner("Please wait"):
-        selected_model = st.selectbox("Select Embedding Model", model_names,  on_change=reset_pipeline_generated)
+    selected_model = st.selectbox("Select Embedding Model", model_names,  on_change=reset_pipeline_generated)
+    with st.spinner("Please wait") as status:
         embed_model = HuggingFaceEmbedding(model_name=selected_model)
         st.session_state['embed_model'] = embed_model
-        st.write(F"Embedding model selected: {embed_model}")
+        st.markdown(F"Embedding Model: {embed_model.model_name}")
+        st.markdown(F"Embed Batch Size: {embed_model.embed_batch_size}")
+        st.markdown(F"Embed Batch Size: {embed_model.max_length}")
+
 
     return embed_model, selected_model
 
 def select_node_parser():
     st.header("Choose Node Parser")
-    parser_type = st.selectbox("Select Node Parser", ["SentenceSplitter", "CodeSplitter", "SemanticSplitterNodeParser", 
-                                                     "TokenTextSplitter", "HTMLNodeParser", "JSONNodeParser", "MarkdownNodeParser"],  on_change=reset_pipeline_generated)
-
-    parser = None
+    parser_types = ["SentenceSplitter", "CodeSplitter", "SemanticSplitterNodeParser",
+                    "TokenTextSplitter", "HTMLNodeParser", "JSONNodeParser", "MarkdownNodeParser"]
+    parser_type = st.selectbox("Select Node Parser", parser_types, on_change=reset_pipeline_generated)
+    
+    parser_params = {}
     if parser_type == "HTMLNodeParser":
         tags = st.text_input("Enter tags separated by commas", "p, h1")
         tag_list = tags.split(',')
         parser = HTMLNodeParser(tags=tag_list)
-
+        parser_params = {'tags': tag_list}
+        
     elif parser_type == "JSONNodeParser":
         parser = JSONNodeParser()
-
+        
     elif parser_type == "MarkdownNodeParser":
         parser = MarkdownNodeParser()
-
+        
     elif parser_type == "CodeSplitter":
         language = st.text_input("Language", "python")
         chunk_lines = st.number_input("Chunk Lines", min_value=1, value=40)
         chunk_lines_overlap = st.number_input("Chunk Lines Overlap", min_value=0, value=15)
         max_chars = st.number_input("Max Chars", min_value=1, value=1500)
         parser = CodeSplitter(language=language, chunk_lines=chunk_lines, chunk_lines_overlap=chunk_lines_overlap, max_chars=max_chars)
-
+        parser_params = {'language': language, 'chunk_lines': chunk_lines, 'chunk_lines_overlap': chunk_lines_overlap, 'max_chars': max_chars}
+        
     elif parser_type == "SentenceSplitter":
         chunk_size = st.number_input("Chunk Size", min_value=1, value=1024)
         chunk_overlap = st.number_input("Chunk Overlap", min_value=0, value=20)
         parser = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-
+        parser_params = {'chunk_size': chunk_size, 'chunk_overlap': chunk_overlap}
+        
     elif parser_type == "SemanticSplitterNodeParser":
         if 'embed_model' not in st.session_state:
             st.warning("Please select an embedding model first.")
-            return None
-    
+            return None, None
+        
         embed_model = st.session_state['embed_model']
-
         buffer_size = st.number_input("Buffer Size", min_value=1, value=1)
         breakpoint_percentile_threshold = st.number_input("Breakpoint Percentile Threshold", min_value=0, max_value=100, value=95)
-        # Ensure embed_model is initialized or available here
         parser = SemanticSplitterNodeParser(buffer_size=buffer_size, breakpoint_percentile_threshold=breakpoint_percentile_threshold, embed_model=embed_model)
-
+        parser_params = {'buffer_size': buffer_size, 'breakpoint_percentile_threshold': breakpoint_percentile_threshold}
+        
     elif parser_type == "TokenTextSplitter":
         chunk_size = st.number_input("Chunk Size", min_value=1, value=1024)
         chunk_overlap = st.number_input("Chunk Overlap", min_value=0, value=20)
-        parser = TokenTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)        
+        parser = TokenTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+        parser_params = {'chunk_size': chunk_size, 'chunk_overlap': chunk_overlap}
 
+    # Save the parser type and parameters to the session state
+    st.session_state['node_parser_type'] = parser_type
+    st.session_state['node_parser_params'] = parser_params
+    
     return parser, parser_type
 
 
@@ -149,7 +152,6 @@ def select_response_synthesis_method():
         "tree_summarize",  
         "compact", 
         "simple_summarize", 
-        "no_text", 
         "accumulate", 
         "compact_accumulate"
     ]
@@ -159,18 +161,14 @@ def select_response_synthesis_method():
 
 def select_vector_store():
     st.header("Choose Vector Store")
-    vector_stores = ["Simple", "Faiss", "Pinecone", "Qdrant"]
+    vector_stores = ["Simple", "Pinecone", "Qdrant"]
     selected_store = st.selectbox("Select Vector Store", vector_stores, on_change=reset_pipeline_generated)
 
     vector_store = None
-    if selected_store == "Faiss":
-        d = 1536
-        faiss_index = faiss.IndexFlatL2(d)
-        vector_store = FaissVectorStore(faiss_index=faiss_index)
 
-    elif selected_store == "Pinecone":
+    if selected_store == "Pinecone":
         pc = Pinecone(api_key=os.environ['PINECONE_API_KEY'])
-        index = pc.Index("quickstart")
+        index = pc.Index("test")
         vector_store = PineconeVectorStore(pinecone_index=index)
 
 
@@ -205,14 +203,12 @@ def generate_rag_pipeline(file, llm, embed_model, node_parser, response_mode, ve
 
 def send_query():
     query = st.session_state['query']
-    # Placeholder for sending query to LLM and getting the response
-    # Replace this with actual query handling and response generation
     response = f"Response for the query: {query}"
     st.markdown(response)
 
 def generate_code_snippet(llm_choice, embed_model_choice, node_parser_choice, response_mode, vector_store_choice):
-    print("VECTOR STORRRRR")
-    print(vector_store_choice)
+    node_parser_params = st.session_state.get('node_parser_params', {})
+    print(node_parser_params)
     code_snippet = "from llama_index.llms import OpenAI, Gemini, Cohere\n"
     code_snippet += "from llama_index.embeddings import HuggingFaceEmbedding\n"
     code_snippet += "from llama_index import ServiceContext, VectorStoreIndex, StorageContext\n"
@@ -236,11 +232,11 @@ def generate_code_snippet(llm_choice, embed_model_choice, node_parser_choice, re
 
     # Node parser initialization
     node_parsers = {
-        "SentenceSplitter": "SentenceSplitter(chunk_size=1024, chunk_overlap=20)",
-        "CodeSplitter": "CodeSplitter(language='python', chunk_lines=40, chunk_lines_overlap=15, max_chars=1500)",
-        "SemanticSplitterNodeParser": "SemanticSplitterNodeParser(buffer_size=1, breakpoint_percentile_threshold=95, embed_model=embed_model)",
-        "TokenTextSplitter": "TokenTextSplitter(chunk_size=1024, chunk_overlap=20)",
-        "HTMLNodeParser": "HTMLNodeParser(tags=['p', 'h1'])",  # Update tags as needed
+        "SentenceSplitter": f"SentenceSplitter(chunk_size={node_parser_params.get('chunk_size', 1024)}, chunk_overlap={node_parser_params.get('chunk_overlap', 20)})",
+        "CodeSplitter": f"CodeSplitter(language={node_parser_params.get('language', 'python')}, chunk_lines={node_parser_params.get('chunk_lines', 40)}, chunk_lines_overlap={node_parser_params.get('chunk_lines_overlap', 15)}, max_chars={node_parser_params.get('max_chars', 1500)})",
+        "SemanticSplitterNodeParser": f"SemanticSplitterNodeParser(buffer_size={node_parser_params.get('buffer_size', 1)}, breakpoint_percentile_threshold={node_parser_params.get('breakpoint_percentile_threshold', 95)}, embed_model=embed_model)",
+        "TokenTextSplitter": f"TokenTextSplitter(chunk_size={node_parser_params.get('chunk_size', 1024)}, chunk_overlap={node_parser_params.get('chunk_overlap', 20)})",
+        "HTMLNodeParser": f"HTMLNodeParser(tags={node_parser_params.get('tags', ['p', 'h1'])})",  
         "JSONNodeParser": "JSONNodeParser()",
         "MarkdownNodeParser": "MarkdownNodeParser()"
     }
@@ -280,7 +276,7 @@ def generate_code_snippet(llm_choice, embed_model_choice, node_parser_choice, re
     return code_snippet
 
 def main():
-    st.title("RAG Tester Application")
+    st.title("RAGArch: Test your RAG pipelines for different parameters using Llamaindex and generate code")
 
     # Upload file
     file = upload_file()
@@ -288,29 +284,27 @@ def main():
     # Select RAG components
     llm, llm_choice = select_llm()
     embed_model, embed_model_choice = select_embedding_model()
-    #embeddings = embed_model.get_text_embedding("Hello World!")
-    #print(len(embeddings))
-    #print(embeddings[:5])
+
 
     node_parser, node_parser_choice = select_node_parser()
     # Process nodes only if a file has been uploaded
     if file is not None:
         if node_parser:
             nodes = node_parser.get_nodes_from_documents(file)
-            st.code(f"First node: {nodes[0].text}")
+            st.write("First node: ")
+            st.code(f"{nodes[0].text}")
 
     response_mode, response_mode_choice = select_response_synthesis_method()
     vector_store, vector_store_choice = select_vector_store()
-    print("VECCTOR STORE CHOICE")
-    print(vector_store_choice)
 
     # Generate RAG Pipeline Button
     if file is not None:
         if st.button("Generate RAG Pipeline"):
-            query_engine = generate_rag_pipeline(file, llm, embed_model, node_parser, response_mode, vector_store)
-            st.session_state['query_engine'] = query_engine
-            st.session_state['pipeline_generated'] = True
-            st.success("RAG Pipeline Generated Successfully!")
+            with st.spinner():
+                query_engine = generate_rag_pipeline(file, llm, embed_model, node_parser, response_mode, vector_store)
+                st.session_state['query_engine'] = query_engine
+                st.session_state['pipeline_generated'] = True
+                st.success("RAG Pipeline Generated Successfully!")
     elif file is None:
         st.error('Please upload a file')
 

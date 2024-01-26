@@ -23,13 +23,7 @@ def upload_file():
             loaded_file = SimpleDirectoryReader(input_files=[file_path]).load_data()
             print(f"Total documents: {len(loaded_file)}")
 
-            # If there are any documents, print the details of the first one
-            if loaded_file:
-                #st.write(f"First document, id: {loaded_file[0].doc_id}")
-                #print(f"First document, hash: {loaded_file[0].hash}")
-                #print(f"First document, text ({len(loaded_file[0].text)} characters):\n{'='*20}\n{loaded_file[0].text[:360]} ...")
-
-            st.success(f"File uploaded successfully")
+            st.success(f"File uploaded successfully. Total documents loaded: {len(loaded_file)}")
             #print(loaded_file)
         return loaded_file
     return None
@@ -276,7 +270,7 @@ def generate_code_snippet(llm_choice, embed_model_choice, node_parser_choice, re
     return code_snippet
 
 def main():
-    st.title("RAGArch: RAG Pipeline Tester and Code Generator")
+    st.title("RAGArchitect: RAG Pipeline Tester and Code Generator")
     st.markdown("""
     - **Configure and Test RAG Pipelines with Custom Parameters**
     - **Automatically Generate Plug-and-Play Implementation Code Based on Your Configuration**
